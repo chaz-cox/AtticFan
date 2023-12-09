@@ -5,17 +5,12 @@ import Tempature from './components/Tempature.vue';
 import SetTempature from './components/SetTempature.vue';
 import LogDialog from './components/Dialog.vue';
 
-import { useBluetooth } from '@vueuse/core'
 
-const {
-  isSupported,
-  isConnected,
-  device,
-  requestDevice,
-  server,
-} = useBluetooth({
-  acceptAllDevices: true,
-})
+const SERVICE_UUID = 'a1c3103b-efff-49cd-9ed5-afe405dbf51d';
+const CHARACTERISTIC_UUID = 'dba31013-52aa-45e5-a22d-329f6d02aba0';
+var myCharacteristic = null;
+var dec = new TextDecoder();
+var enc = new TextEncoder();
 
 const showSetTemperature = ref(false);
 var setTemp = ref(102);
@@ -65,11 +60,17 @@ const submitDialog = (dateRange) =>{
 }
 
 const handleManualON = () =>{
-    checkBLE();
+    let message = "fan_on";
+    if(checkBLE()){
+        myCharacteristic.writeValue(enc.encode(message));
+    }
 }
 
 const handleManualOFF = () =>{
-    checkBLE();
+    let message = "fan_off";
+    if(checkBLE()){
+        myCharacteristic.writeValue(enc.encode(message));
+    }
 }
 
 const handleAuto = () =>{
@@ -85,7 +86,18 @@ const checkBLE = () =>{
 }
 
 const handleConnect = () =>{
-    requestDevice();
+    navigator.bluetooth.requestDevice({
+    filters: [{ services: [SERVICE_UUID] }]
+  }).then(device => {
+    return device.gatt.connect();
+  }).then(server => {
+    return server.getPrimaryService(SERVICE_UUID);
+  }).then(service => {
+    return service.getCharacteristic(CHARACTERISTIC_UUID);
+  }).then(characteristic => {
+    myCharacteristic = characteristic;
+    console.log(myCharacteristic);
+  });
     connected.value = true;
 }
 
