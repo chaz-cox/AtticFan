@@ -13,7 +13,10 @@ var dec = new TextDecoder();
 var enc = new TextEncoder();
 
 const showSetTemperature = ref(false);
-var setTemp = ref(102);
+var setTemp = ref(null);
+var atticTemp = ref(null);
+
+var status = "None";
 
 const viewLog = ref(false);
 const viewLogNoBLE = ref(false);
@@ -63,6 +66,7 @@ const handleManualON = () =>{
     let message = "fan_on";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
+        status= "ON - MANUAL"
     }
 }
 
@@ -70,11 +74,19 @@ const handleManualOFF = () =>{
     let message = "fan_off";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
+        status= "OFF - MANUAL"
     }
 }
 
 const handleAuto = () =>{
-    checkBLE();
+    if (checkBLE()){
+        if(setTemp.value != null){
+            console.log("setTemp",setTemp.value);
+            let message = String(setTemp.value);
+            myCharacteristic.writeValue(enc.encode(message));
+            status = "AUTO"
+        }
+    }
 }
 
 const checkBLE = () =>{
@@ -97,9 +109,31 @@ const handleConnect = () =>{
   }).then(characteristic => {
     myCharacteristic = characteristic;
     console.log(myCharacteristic);
+    readValuePeriodically();
   });
     connected.value = true;
 }
+
+const readValuePeriodically = async () => {
+    let isReading = false;
+    try {
+      while (true) {
+          if(!isReading){
+            const value = await myCharacteristic.readValue();
+            console.log(dec.decode(value));
+            atticTemp.value = dec.decode(value);
+            isReading = false;
+          }
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Adjust the interval as needed
+      }
+    } catch (error) {
+      console.error('Error reading value:', error);
+      isReading = false;
+    }
+};
+
+
+
 
 </script>
 
@@ -108,8 +142,8 @@ const handleConnect = () =>{
     <h1 class="mb-4 text-4xl font-extrabold leading-none tracking-tight text-black border-b-4 border-white p-4 md:text-5xl lg:text-6xl">
       Attic Fan
     </h1>
-    <Status _status="ON - Auto" />
-    <Tempature :_temp="110" :_setTemp=setTemp />
+    <Status :_status="status" />
+    <Tempature :_temp="atticTemp" :_setTemp="setTemp" />
     <button @click="toggleSetTemperature" v-if="!showSetTemperature" class="small-button">Set Auto Temperature</button>
     <SetTempature v-if="showSetTemperature" :_setTemp="setTemp" @set="setTemperature" />
     <LogDialog v-if="viewLog" _title="Attic Fan Log" _content="Select a date range to see if the fan was on that day, and how long it was on." :_log=viewLog @submit="submitDialog" /> 
