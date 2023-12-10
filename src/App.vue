@@ -7,7 +7,7 @@ import Status from './components/Status.vue';
 import Tempature from './components/Tempature.vue';
 import SetTempature from './components/SetTempature.vue';
 import LogDialog from './components/Dialog.vue';
-
+import { IntersectingCirclesSpinner } from 'epic-spinners'
 
 const SERVICE_UUID = 'a1c3103b-efff-49cd-9ed5-afe405dbf51d';
 const CHARACTERISTIC_UUID = 'dba31013-52aa-45e5-a22d-329f6d02aba0';
@@ -17,9 +17,12 @@ var enc = new TextEncoder();
 
 const showSetTemperature = ref(false);
 var setTemp = null;
-var atticTemp = ref(null);
+const atticTemp = ref(null);
 
-var status = "None";
+var autoMode = false;
+var loading = false;
+
+const status = ref("None");
 
 const viewLog = ref(false);
 const viewLogNoBLE = ref(false);
@@ -69,26 +72,50 @@ const handleManualON = () =>{
     let message = "fan_on";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
-        status= "ON - MANUAL"
+        status.value= "ON - MANUAL"
+        autoMode = false;
     }
+    load();
 }
 
 const handleManualOFF = () =>{
     let message = "fan_off";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
-        status= "OFF - MANUAL"
+        status.value= "OFF - MANUAL"
+        autoMode = false;
     }
+    load();
 }
 
 const handleAuto = () =>{
     if (checkBLE()){
         console.log("setTemp",setTemp);
-        if(setTemp != null){
+        if(setTemp == null){
+            toggleSetTemperature();
+        }else{
             console.log("setTemp",setTemp);
-            let message = String(setTemp);
-            myCharacteristic.writeValue(enc.encode(message));
-            status = "AUTO"
+            try{
+                let message; 
+                let prevStatus = (' ' + status.value).slice(1);
+                if (setTemp < atticTemp.value){ //if attic temp is hotter turn on the fan
+                    message = "fan_on";
+                    status.value = "ON - AUTO";
+                }else{
+                    message = "fan_off";
+                    status.value = "OFF - AUTO";
+                }
+                if (status.value != prevStatus){
+                    myCharacteristic.writeValue(enc.encode(message));
+                }else{
+                    console.log("prevStatus",prevStatus," == status",status.value);
+                }
+                autoMode = true;
+            }
+            catch(err){
+                console.log("Are these numbers? setTemp:",setTemp," atticTemp:",atticTemp.value);
+                console.log(err);
+            }
         }
     }
 }
@@ -101,7 +128,15 @@ const checkBLE = () =>{
     return true;
 }
 
+const load = () =>{
+    loading = true;
+     setTimeout(() => {
+        loading= false;
+      }, 1000);
+};
+
 const handleConnect = () =>{
+    loading = true;
     navigator.bluetooth.requestDevice({
     filters: [{ services: [SERVICE_UUID] }]
   }).then(device => {
@@ -114,8 +149,14 @@ const handleConnect = () =>{
     myCharacteristic = characteristic;
     console.log(myCharacteristic);
     readValuePeriodically();
-  });
     connected.value = true;
+    toggleSetTemperature();
+  }).catch((error) => {
+      console.error('Connection error:', error);
+      connected.value = false; // Set connected to false on error or cancel
+  }).finally(() =>{
+      loading = false;
+  });
 }
 
 const readValuePeriodically = async () => {
@@ -125,10 +166,19 @@ const readValuePeriodically = async () => {
           if(!isReading){
             const value = await myCharacteristic.readValue();
             console.log(dec.decode(value));
-            atticTemp.value = dec.decode(value);
+            if(autoMode){
+                const decodedValue = dec.decode(value);
+                atticTemp.value = decodedValue;
+                if (atticTemp.value != "fan_on" && atticTemp.value != "fan_off"){
+                    handleAuto();
+                }
+            }else{
+                const decodedValue = dec.decode(value);
+                atticTemp.value = decodedValue;
+            }
             isReading = false;
           }
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Adjust the interval as needed
+        await new Promise((resolve) => setTimeout(resolve, 1500)); // Adjust the interval as needed
       }
     } catch (error) {
       console.error('Error reading value:', error);
@@ -152,13 +202,20 @@ const readValuePeriodically = async () => {
     <SetTempature v-if="showSetTemperature" :_setTemp="setTemp" @set="setTemperature" />
     <LogDialog v-if="viewLog" _title="Attic Fan Log" _content="Select a date range to see if the fan was on that day, and how long it was on." :_log=viewLog @submit="submitDialog" /> 
     <LogDialog v-if="viewLogNoBLE" _title="Connect To Bluetooth" _content="Fan data not avalible unless you connect to it via bluetooth!" :_log=false @submit="submitDialog" />
+
+    <intersecting-circles-spinner
+    v-if="loading"
+  :animation-duration="1200"
+  :size="70"
+  color="#ff1d5e"
+/>
     <div class="space-y-4 text-center">
       <button class="button" @click="handleManualON">Manual ON</button>
       <button class="button" @click="handleManualOFF">Manual OFF</button>
       <button class="button" @click="handleAuto">Auto</button>
       <button class="button" @click="toggleViewLog(true)">View Log</button>
       <br />
-      <button class="small-button" @click="handleConnect">Connect</button>
+      <button v-if="!connected" class="small-button" @click="handleConnect">Connect</button>
     </div>
   </div>
 </template>
