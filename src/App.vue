@@ -1,4 +1,7 @@
 <script setup>
+/* MAKE A LOADING THING THAT MAKES IT SO BUTTONS DONT WORK UNTIL LOADED */
+/* ERR HAPPENS WHEN CLICK AUTO */
+/* SO IT MIGHT JUST CHANGE FROM ex fan_off to number when temp changes so need to fix that too */
 import { ref } from 'vue';
 import Status from './components/Status.vue';
 import Tempature from './components/Tempature.vue';
@@ -13,7 +16,7 @@ var dec = new TextDecoder();
 var enc = new TextEncoder();
 
 const showSetTemperature = ref(false);
-var setTemp = ref(null);
+var setTemp = null;
 var atticTemp = ref(null);
 
 var status = "None";
@@ -80,9 +83,10 @@ const handleManualOFF = () =>{
 
 const handleAuto = () =>{
     if (checkBLE()){
-        if(setTemp.value != null){
-            console.log("setTemp",setTemp.value);
-            let message = String(setTemp.value);
+        console.log("setTemp",setTemp);
+        if(setTemp != null){
+            console.log("setTemp",setTemp);
+            let message = String(setTemp);
             myCharacteristic.writeValue(enc.encode(message));
             status = "AUTO"
         }
