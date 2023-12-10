@@ -2,9 +2,9 @@
  #include "heltec.h"
  #include "DHT.h"
  
- #define DHTPIN 3
+ #define DHTPIN 14
  #define DHTTYPE DHT11
- #define FANPIN 2
+ #define FANPIN 13
 
   #define DEVICE_NAME         "Attic Fan"
   #define SERVICE_UUID        "a1c3103b-efff-49cd-9ed5-afe405dbf51d"
@@ -47,7 +47,8 @@
 
   void setup() {
     Heltec.begin(true /*display*/, false /*LoRa*/, true /*Serial*/);
-    printToScreen("ON");
+    printToScreen("Heltec ON");
+    digitalWrite(FANPIN, HIGH);
 
     pinMode(FANPIN,OUTPUT);
     Serial.begin(9600);
@@ -78,13 +79,12 @@
   void loop() {
     delay(10000);
       float h = dht.readHumidity();
-      float f = dht.readTempature(true);
+      float f = dht.readTemperature(true);
       if(isnan(h) || isnan(f)){
         printToScreen("Couldn't get tempature.");
         return;
       }
       float index = dht.computeHeatIndex(f,h);
-      printToScreen("Humidity: " + string(h)+ "\n");
-      printToScreen("Tempature: " + string(f)+ "*F\n");
-      printToScreen("Feels Like: " + string(index)+ "*F\n"); 
+      pCharacteristic->setValue(String(f).c_str());
+      printToScreen("Humidity: " + String(h)+ "\n"+"Tempature: " + String(f)+ "*F\n"+"Feels Like: " + String(index)+ "*F\n"); 
   }
