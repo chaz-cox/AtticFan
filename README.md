@@ -5,6 +5,7 @@ Embedded Systems project for controlling an attic fan to regulate temperature.
 
 Run by:
 ```
+npm i
 npm run dev
 ```
 
