@@ -17,7 +17,7 @@ const path = mdiTemperatureFahrenheit;
   </h2>
   <br />
   <h2 class="text-2xl font-semibold text-black flex items-center">
-      Auto Temperature Set:   
+      Max Auto Temperature:   
       <span class="text-orange-800 text-2xl ml-2">{{ _setTemp }}</span> 
       <svg-icon type="mdi" :path="path" class=""></svg-icon>
   </h2>

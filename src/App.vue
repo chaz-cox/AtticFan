@@ -1,7 +1,4 @@
 <script setup>
-/* MAKE A LOADING THING THAT MAKES IT SO BUTTONS DONT WORK UNTIL LOADED */
-/* ERR HAPPENS WHEN CLICK AUTO */
-/* SO IT MIGHT JUST CHANGE FROM ex fan_off to number when temp changes so need to fix that too */
 import { ref } from 'vue';
 import Status from './components/Status.vue';
 import Tempature from './components/Tempature.vue';
@@ -19,8 +16,8 @@ const showSetTemperature = ref(false);
 var setTemp = null;
 const atticTemp = ref(null);
 
-var autoMode = false;
 var loading = false;
+var auto = false;
 
 const status = ref("None");
 
@@ -47,9 +44,11 @@ const toggleSetTemperature = () => {
 };
 
 const setTemperature = (value) =>{
-    console.log(value);
     if (checkBLE()){
         setTemp= value;
+        if (auto){
+            handleAuto();
+        }
     }
     toggleSetTemperature();
 }
@@ -72,9 +71,8 @@ const handleManualON = () =>{
     let message = "fan_on";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
-        status.value= "ON - MANUAL"
-        autoMode = false;
     }
+    auto = false;
     load();
 }
 
@@ -82,9 +80,8 @@ const handleManualOFF = () =>{
     let message = "fan_off";
     if(checkBLE()){
         myCharacteristic.writeValue(enc.encode(message));
-        status.value= "OFF - MANUAL"
-        autoMode = false;
     }
+    auto = false;
     load();
 }
 
@@ -92,30 +89,14 @@ const handleAuto = () =>{
     if (checkBLE()){
         console.log("setTemp",setTemp);
         if(setTemp == null){
-            toggleSetTemperature();
+            alert("max Auto is null");
         }else{
-            console.log("setTemp",setTemp);
-            try{
-                let message; 
-                let prevStatus = (' ' + status.value).slice(1);
-                if (setTemp < atticTemp.value){ //if attic temp is hotter turn on the fan
-                    message = "fan_on";
-                    status.value = "ON - AUTO";
-                }else{
-                    message = "fan_off";
-                    status.value = "OFF - AUTO";
-                }
-                if (status.value != prevStatus){
-                    myCharacteristic.writeValue(enc.encode(message));
-                }else{
-                    console.log("prevStatus",prevStatus," == status",status.value);
-                }
-                autoMode = true;
-            }
-            catch(err){
-                console.log("Are these numbers? setTemp:",setTemp," atticTemp:",atticTemp.value);
-                console.log(err);
-            }
+            let lenOfTemp = String(setTemp).length;
+            console.log("current maxTemp = ",setTemp);
+            let message = String(lenOfTemp)+"_auto_"+String(setTemp);
+            myCharacteristic.writeValue(enc.encode(message));
+            auto = true;
+            load();
         }
     }
 }
@@ -150,7 +131,6 @@ const handleConnect = () =>{
     console.log(myCharacteristic);
     readValuePeriodically();
     connected.value = true;
-    toggleSetTemperature();
   }).catch((error) => {
       console.error('Connection error:', error);
       connected.value = false; // Set connected to false on error or cancel
@@ -165,23 +145,43 @@ const readValuePeriodically = async () => {
       while (true) {
           if(!isReading){
             const value = await myCharacteristic.readValue();
-            console.log(dec.decode(value));
-            if(autoMode){
-                const decodedValue = dec.decode(value);
-                atticTemp.value = decodedValue;
-                if (atticTemp.value != "fan_on" && atticTemp.value != "fan_off"){
-                    handleAuto();
-                }
+            const decodedValue = dec.decode(value);
+            let lenOfTemps = decodedValue[0] - '0';
+            lenOfTemps +=1;
+            console.log(lenOfTemps);
+            let statusValue = decodedValue.slice(1,decodedValue.length-lenOfTemps);
+            console.log(statusValue);
+            let temps = decodedValue.slice(decodedValue.length-lenOfTemps);
+            console.log("TEMPS:",temps);
+            console.log("message:",decodedValue);
+            let Split = temps.indexOf(',');
+            let atemp = temps.slice(0,Split);
+            let maxtemp = temps.slice(Split+1);
+            if (statusValue == '_auto_on_'){
+                status.value = "ON - AUTO";
+                auto = true;
+            }else if (statusValue == '_auto_off_'){
+                status.value = "OFF - AUTO";
+                auto = true;
+            }else if( statusValue == '_manual_on_'){
+                status.value= "ON - MANUAL"
+                auto = false;
+            }else if( statusValue == '_manual_off_'){
+                status.value= "OFF - MANUAL"
+                auto = false;
             }else{
-                const decodedValue = dec.decode(value);
-                atticTemp.value = decodedValue;
+                console.error("ERR:",decodedValue);
+                auto = false;
             }
+            atticTemp.value = atemp;
+            setTemp = maxtemp;
             isReading = false;
           }
         await new Promise((resolve) => setTimeout(resolve, 1500)); // Adjust the interval as needed
       }
     } catch (error) {
       console.error('Error reading value:', error);
+      console.error('Error details:', error.message, error.code, error.name);
       isReading = false;
     }
 };
@@ -198,7 +198,7 @@ const readValuePeriodically = async () => {
     </h1>
     <Status :_status="status" />
     <Tempature :_temp="atticTemp" :_setTemp="setTemp" />
-    <button @click="toggleSetTemperature" v-if="!showSetTemperature" class="small-button">Set Auto Temperature</button>
+    <button @click="toggleSetTemperature" v-if="!showSetTemperature" class="small-button">Set Max Temperature</button>
     <SetTempature v-if="showSetTemperature" :_setTemp="setTemp" @set="setTemperature" />
     <LogDialog v-if="viewLog" _title="Attic Fan Log" _content="Select a date range to see if the fan was on that day, and how long it was on." :_log=viewLog @submit="submitDialog" /> 
     <LogDialog v-if="viewLogNoBLE" _title="Connect To Bluetooth" _content="Fan data not avalible unless you connect to it via bluetooth!" :_log=false @submit="submitDialog" />
