@@ -17,6 +17,7 @@ manage attic temperature efficiently.
 
 ## Wires and Enclosure
 ![IMG_1040.jpg](./esp32/IMG_1040.jpg)
+![IMG_1041.jpg](./esp32/IMG_1041.jpg)
 
 **Items**
 - Relay
