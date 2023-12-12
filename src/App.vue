@@ -87,12 +87,10 @@ const handleManualOFF = () =>{
 
 const handleAuto = () =>{
     if (checkBLE()){
-        console.log("setTemp",setTemp);
         if(setTemp == null){
             alert("max Auto is null");
         }else{
             let lenOfTemp = String(setTemp).length;
-            console.log("current maxTemp = ",setTemp);
             let message = String(lenOfTemp)+"_auto_"+String(setTemp);
             myCharacteristic.writeValue(enc.encode(message));
             auto = true;
@@ -128,7 +126,6 @@ const handleConnect = () =>{
     return service.getCharacteristic(CHARACTERISTIC_UUID);
   }).then(characteristic => {
     myCharacteristic = characteristic;
-    console.log(myCharacteristic);
     readValuePeriodically();
     connected.value = true;
   }).catch((error) => {
@@ -148,12 +145,8 @@ const readValuePeriodically = async () => {
             const decodedValue = dec.decode(value);
             let lenOfTemps = decodedValue[0] - '0';
             lenOfTemps +=1;
-            console.log(lenOfTemps);
             let statusValue = decodedValue.slice(1,decodedValue.length-lenOfTemps);
-            console.log(statusValue);
             let temps = decodedValue.slice(decodedValue.length-lenOfTemps);
-            console.log("TEMPS:",temps);
-            console.log("message:",decodedValue);
             let Split = temps.indexOf(',');
             let atemp = temps.slice(0,Split);
             let maxtemp = temps.slice(Split+1);
