@@ -3,7 +3,7 @@
 ## Overview
 Embedded Systems project for controlling an attic fan to regulate temperature.
 
-Run by this command:
+Run by:
 ```
 npm run dev
 ```
@@ -16,7 +16,7 @@ The fan is controlled wirelessly, providing users with the ability to
 manage attic temperature efficiently.
 
 ## Wires and Enclosure
-![IMG-1040.jpg](./esp32/IMG-1040.jpg)
+![IMG_1040.jpg](./esp32/IMG_1040.jpg)
 
 **Items**
 - Relay
