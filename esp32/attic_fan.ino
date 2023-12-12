@@ -12,6 +12,9 @@
 
   BLECharacteristic *pCharacteristic;
   String message = "";
+  String status = "";
+  float maxTemp=0;
+  bool Auto = false;
   DHT dht(DHTPIN,DHTTYPE, 6);
 
   void printToScreen(String s) {
@@ -38,9 +41,19 @@
 
       if (message == "fan_on") {
         digitalWrite(FANPIN, LOW);
+        status = "_manual_on_";
+        Auto = false;
       }
       if (message == "fan_off") {
         digitalWrite(FANPIN, HIGH);
+        status = "_manual_off_";
+        Auto = false;
+      }
+      if (isDigit(message[0])){
+        int lenOfTemp = message[0] - '0';
+        maxTemp = (message.substring(message.length()-lenOfTemp)).toFloat();
+        Serial.println("lenofTemp:"+String(lenOfTemp)+" maxTemp:"+ String(maxTemp) + " message: "+message);
+        Auto = true; 
       } 
     }  
   };
@@ -85,6 +98,25 @@
         return;
       }
       float index = dht.computeHeatIndex(f,h);
-      pCharacteristic->setValue(String(f).c_str());
+
+      if(Auto){
+        if (f > maxTemp){
+
+          Serial.print("Temp:"+String(f)+" MaxTemp:"+String(maxTemp)+'\n');
+          if (status != "_auto_on_"){ //if it is already on no need to turn it on again.
+           digitalWrite(FANPIN, LOW);
+           status = "_auto_on_";
+          }
+        }else{
+          if (status != "_auto_off_"){
+            digitalWrite(FANPIN, HIGH);
+            status = "_auto_off_";
+          }
+        }
+      }
+
+      String letter = String(String(String(f).length() + String(int(maxTemp)).length())) + status + String(f)+ ","+String(int(maxTemp));
+      
+      pCharacteristic->setValue(letter.c_str());
       printToScreen("Humidity: " + String(h)+ "\n"+"Tempature: " + String(f)+ "*F\n"+"Feels Like: " + String(index)+ "*F\n"); 
   }
